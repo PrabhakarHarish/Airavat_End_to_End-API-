@@ -1,0 +1,62 @@
+=== Airavat API Test Cases - Executive Summary & Division Index ===
+Division / Module,Test File,Total Tests,Implemented,Planned,Endpoints Covered,Primary HTTP Methods
+Authentication & Session,tests/test_auth.py,10,7,3,"/API/login/, /API/logout/, /API/token/refresh/","POST, GET"
+User Profile & Settings,tests/test_user.py,6,6,0,"/API/user/profile/, /API/user/change-password/, /API/user/roles/","GET, PUT, PATCH, POST"
+Financial Model Builder,tests/test_models.py,8,8,0,"/API/models/, /API/models/{id}/, /API/models/{id}/autosave/, /API/templates/","GET, POST, PUT, DELETE"
+Excel & Data Processing,tests/test_excel_processing.py,8,7,1,"/API/excel/upload/, /API/excel/validate-pnl/, /API/excel/convert-to-model/, /API/models/{id}/export/excel/","POST, GET"
+Security & Performance,tests/test_security_perf.py,6,0,6,"/API/login/, /API/models/, /API/models/{id}/","GET, POST, PUT, DELETE"
+TOTAL,4 Test Suites,38,28,10,15+ Endpoints,"GET, POST, PUT, PATCH, DELETE"
+
+=== Division 1: Authentication & Session Management (tests/test_auth.py) ===
+Test Case ID,Test Status,Request Type,Endpoint,Expected Status,Short Test Case Description,Validation Details
+TC_AUTH_001,Current (Implemented),POST,/API/login/,200 OK,Login with valid credentials,"Validates 200 OK, 'message': 'Login successful', 'token' in body, sessionid & csrftoken cookies set."
+TC_AUTH_002,Current (Implemented),POST,/API/login/,400 / 401 / 403,Login with invalid password,"Wrong password rejected with client/auth error code (400, 401, or 403); no session cookies."
+TC_AUTH_003,Current (Implemented),POST,/API/login/,400 / 401 / 403 / 404,Login with non-existent username,Rejects non-existent username; prevents user enumeration; no auth tokens created.
+TC_AUTH_004,Current (Implemented),POST,/API/login/,400 / 422,Login with blank/missing password,Rejects request when password field is empty or omitted in multipart form-data payload.
+TC_AUTH_005,Current (Implemented),POST,/API/login/,400 / 422,Login with blank/missing username,Rejects request when username field is empty or omitted in multipart form-data payload.
+TC_AUTH_006,Current (Implemented),POST,/API/login/,400 / 422,Login with completely empty payload,Empty body/payload returns 400 Bad Request with field validation errors.
+TC_AUTH_007,Current (Implemented),POST,/API/logout/,200 / 204 / 302,User logout and session invalidation,Clears server-side session; subsequent calls using previous sessionid return 401.
+TC_AUTH_008,Upcoming (Planned),POST,/API/token/refresh/,200 OK,Refresh authentication token,Submits valid refresh token and receives new short-lived access JWT token.
+TC_AUTH_009,Upcoming (Planned),POST,/API/token/refresh/,401 Unauthorized,Refresh with expired/tampered token,Expired or forged refresh token is rejected with 401 Unauthorized.
+TC_AUTH_010,Upcoming (Planned),POST,/API/login/,429 Too Many Requests,Rate limit check on brute-force logins,Exceeding threshold (e.g. 5 failed logins within 1 min) returns 429 and Retry-After header.
+
+=== Division 2: User Profile & Account Settings (tests/test_user.py) ===
+Test Case ID,Test Status,Request Type,Endpoint,Expected Status,Short Test Case Description,Validation Details
+TC_USER_001,Current (Implemented),GET,/API/user/profile/,200 / 302,Get current user profile,"Returns authenticated user metadata (id, username, email, active roles, organization)."
+TC_USER_002,Current (Implemented),GET,/API/user/profile/,401 / 403 / 302,Get profile without auth token/cookies,Unauthenticated request is rejected with 401/403 or redirect.
+TC_USER_003,Current (Implemented),PATCH,/API/user/profile/,200 / 204 / 405,Update user profile information,"Updates allowed fields (first_name, last_name, preferences) and returns updated profile."
+TC_USER_004,Current (Implemented),PATCH,/API/user/profile/,400 / 422 / 405,Update profile with invalid data formats,Invalid email format or disallowed characters trigger 400 with specific field errors.
+TC_USER_005,Current (Implemented),POST,/API/user/change-password/,400 / 401 / 403,Change password with invalid current password,Fails verification when current password does not match database record.
+TC_USER_006,Current (Implemented),GET,/API/user/roles/,200 / 404,Fetch user roles and permissions,Retrieves assigned permission set and active feature flags for user.
+
+=== Division 3: Financial Model Builder & Templates (tests/test_models.py) ===
+Test Case ID,Test Status,Request Type,Endpoint,Expected Status,Short Test Case Description,Validation Details
+TC_MODEL_001,Current (Implemented),GET,/API/models/,200 / 404,List all models for current user,"Returns paginated list of models with id, name, template_type, created_at, updated_at."
+TC_MODEL_002,Current (Implemented),POST,/API/models/,200 / 201 / 400,Create a new financial model,Accepts model name and base template id; creates model and returns new model_id.
+TC_MODEL_003,Current (Implemented),POST,/API/models/,400 / 422 / 404,Create model with missing required fields,Missing 'name' or required parameters returns 400 with error details.
+TC_MODEL_004,Current (Implemented),GET,/API/models/1/,200 / 404,Get model schema and cell formulas,"Returns complete tree/grid structure, formulas, and calculated assumptions."
+TC_MODEL_005,Current (Implemented),GET,/API/models/99999999/,400 / 404,Get model with non-existent model ID,Returns 404 Not Found with error details.
+TC_MODEL_006,Current (Implemented),PUT,/API/models/1/,200 / 204 / 400,Update model assumptions and parameters,"Updates forecast periods, discount rate, growth rate; triggers recalculation."
+TC_MODEL_007,Current (Implemented),POST,/API/models/1/autosave/,200 / 204 / 400,Autosave model draft state,Saves delta/incremental state payload without creating full version commit.
+TC_MODEL_008,Current (Implemented),GET,/API/templates/,200 / 404,List standard financial model templates,"Returns list of base templates (DCF, LBO, PNL, M&A)."
+
+"=== Division 4: Excel Ingestion, Conversion & P&L Validation (tests/test_excel_processing.py) ==="
+Test Case ID,Test Status,Request Type,Endpoint,Expected Status,Short Test Case Description,Validation Details
+TC_DATA_001,Current (Implemented),POST,/API/excel/upload/,200 / 201 / 400,Upload valid template Excel (.xlsx),"Parses workbook, detects sheet names ('Base_Template_5'), extracts cell ranges."
+TC_DATA_002,Current (Implemented),POST,/API/excel/upload/,400 / 415 / 422,Upload unsupported file format (.exe/.txt),Rejects unsupported MIME types with 415 or 400 and clear error message.
+TC_DATA_003,Current (Implemented),POST,/API/excel/validate-pnl/,200 / 400 / 404,Validate P&L sheet data consistency,"Runs reconciliation checks across Revenue, COGS, EBITDA, Net Income line items."
+TC_DATA_004,Current (Implemented),POST,/API/excel/validate-pnl/,400 / 422 / 404,Validate P&L sheet with broken calculations,Detects math mismatch or broken references; returns cell coordinates and errors.
+TC_DATA_005,Current (Implemented),POST,/API/excel/convert-to-model/,200 / 201 / 400,Convert Excel template to model structure,Transforms tabular Excel sheets into Airavat model JSON representation.
+TC_DATA_006,Current (Implemented),GET,/API/models/1/export/excel/,200 / 404,Export model output to Excel (.xlsx),Generates downloadable .xlsx binary stream with proper MIME type.
+TC_DATA_007,Current (Implemented),POST,/API/excel/extract-picture-data/,200 / 400 / 404,Extract merged picture/chart data,Extracts image/chart coordinates and embedded figures from Excel.
+TC_DATA_008,Upcoming (Planned),POST,/API/excel/upload/,413 Payload Too Large,Upload file exceeding size limit,Rejects files larger than maximum allowed size (e.g. >25MB) with HTTP 413.
+
+"=== Division 5: Security, CSRF & Performance (tests/test_security_perf.py) ==="
+Test Case ID,Test Status,Request Type,Endpoint,Expected Status,Short Test Case Description,Validation Details
+TC_SEC_001,Upcoming (Planned),POST,/API/models/,403 Forbidden,State-changing request without CSRF token,Verifies Django/backend CSRF protection rejects mutations missing csrftoken.
+TC_SEC_002,Upcoming (Planned),GET,/API/models/?search=' OR 1=1--,200 OK / 400 Bad Request,SQL injection in query parameter,Verifies search queries are parameterized and do not execute injected SQL.
+TC_SEC_003,Upcoming (Planned),POST,/API/models/,400 / 201 (Sanitized),Cross-Site Scripting (XSS) prevention,HTML/JS tags in model names are sanitized or rejected before storage.
+TC_SEC_004,Upcoming (Planned),GET,/API/models/{other_user_model_id}/,403 Forbidden / 404 Not Found,Horizontal privilege escalation check,User A cannot view or modify models belonging to User B.
+TC_PERF_001,Upcoming (Planned),GET,/API/models/,200 OK (Latency < 500ms),API response latency benchmark,Measures response time for model listing under normal conditions.
+TC_PERF_002,Upcoming (Planned),POST,/API/login/,200 OK (50 concurrent),Concurrent login load test,Validates connection pool stability and session handling under concurrent load.
+
